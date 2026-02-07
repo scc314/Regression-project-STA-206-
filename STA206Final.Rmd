@@ -1,0 +1,186 @@
+---
+title: "STA206Final"
+author: "Ojas Upadhye, Maxwell Capron, Skylar Calandra"
+date: "2025-12-04"
+output: html_document
+---
+
+
+Load dataset, convert categorical variables to factors and plot histograms and piecharts.
+
+```{r}
+plasma = read.table("Plasma.txt",header=TRUE)
+
+sapply(plasma,class)
+
+
+plasma$SEX <- as.factor(plasma$SEX)
+plasma$SMOKSTAT <- as.factor(plasma$SMOKSTAT)
+plasma$VITUSE <- as.factor(plasma$VITUSE)
+sapply(plasma,class)
+
+
+par(mfrow = c(3,4))
+
+
+for(i in 1:14) {
+  if (i != 2 && i != 3 && i!= 5 ) {
+hist(plasma[, i], main=paste("Histogram:", names(plasma)[i]), xlab = paste('Plasma\'', names(plasma)[i]))}}
+
+
+
+par(mfrow = c(1,3))
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('FEMALE','MALE')
+pct <- round(100*table(plasma$SEX)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$SEX),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='Sex: pie chart with percentage')
+
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('FORMER','NEVER','CURRENT')
+pct <- round(100*table(plasma$SMOKSTAT)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$SMOKSTAT),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='SMOKSTAT: pie chart with percentage')
+
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('OFTEN','NOT OFTEN','NO')
+pct <- round(100*table(plasma$VITUSE)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$VITUSE),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='VITAMIN USE: pie chart')
+
+
+
+
+
+
+```
+
+TRANSFORMATIONS:
+
+
+Exclude observations for MALE patients and perform log transform on vars with non-normal distributions.
+
+```{R}
+plasma = subset(plasma,SEX != "MALE")
+
+plasma$logBETAPLASMA = log(plasma$BETAPLASMA+1)
+plasma$logRETDIET = log(plasma$RETDIET+1)
+plasma$logQUETELET = log(plasma$QUETELET+1)
+plasma$logBETADIET = log(plasma$BETADIET+1)
+plasma$logALCOHOL = log(plasma$ALCOHOL+1)
+
+
+plasma$CaloriesFat = (9*plasma$FAT)/(plasma$CALORIES)
+plasma$CholesterolCal = (plasma$CHOLESTEROL)/(plasma$CALORIES)
+plasma$FiberCalories = (plasma$FIBER)/(plasma$CALORIES)
+```
+
+
+
+After the transformations, we get the following distributions. 
+
+```{r}
+
+par(mfrow = c(3,4))
+
+
+for(i in 1:14) {
+  if (i != 2 && i != 3 && i!= 5 ) {
+hist(plasma[, i], main=paste("", names(plasma)[i]), xlab = paste('Plasma\'', names(plasma)[i]))}}
+
+for(i in 15:22) {
+hist(plasma[, i], main=paste("", names(plasma)[i]), xlab = paste('', names(plasma)[i]))}
+
+
+par(mfrow = c(1,3))
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('FEMALE','MALE')
+pct <- round(100*table(plasma$SEX)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$SEX),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='Sex: pie chart with percentage')
+
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('FORMER','NEVER','CURRENT')
+pct <- round(100*table(plasma$SMOKSTAT)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$SMOKSTAT),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='SMOKSTAT: pie chart with percentage')
+
+
+n <- nrow(plasma)
+vals = 
+lbls <- c('OFTEN','NOT OFTEN','NO')
+pct <- round(100*table(plasma$VITUSE)/n)
+lab <- paste(lbls,pct)
+lab <- paste(lab,'%',sep='')
+lab
+
+pie(table(plasma$VITUSE),labels=lab,col=c('blue','purple','green','yellow','orange'),
+main='VITAMIN USE: pie chart')
+
+```
+
+We then obtain the scatterplot matrix and box plots of categorical values compared to response variables.
+
+
+```{r}
+
+
+panel.cor <- function(x, y){
+  par(usr = c(0, 1, 0, 1))
+  r <- round(cor(x, y, use="complete.obs"), 2)
+  txt <- paste0("R = ", r)
+  text(0.5, 0.5, txt)
+}
+
+pairs(~logBETAPLASMA+RETPLASMA+logRETDIET+logBETADIET+CALORIES+CholesterolCal+logALCOHOL+FiberCalories+CaloriesFat+logQUETELET+AGE, data=plasma, lower.panel = panel.cor)
+
+
+
+boxplot(plasma$logBETAPLASMA~plasma$VITUSE,main='BETAPLASMA vs Vitamin A supplementation',
+xlab='frequency',ylab='Beta Carotene Plasma',col=rainbow(3))
+
+boxplot(plasma$logBETAPLASMA~plasma$SMOKSTAT,main='BETAPLASMA vs Smoking Status',
+xlab='Smoking Status',ylab='Beta Carotene Plasma',col=rainbow(3))
+
+
+boxplot(plasma$RETPLASMA~plasma$VITUSE,main='RETPLASMA vs Vitamin A supplementation',
+xlab='frequency',ylab='Retinol Plasma Concentration',col=rainbow(3))
+
+boxplot(plasma$RETPLASMA~plasma$SMOKSTAT,main='RETPLASMA vs Smoking Status',
+xlab='Smoking Status',ylab='Retinol Plasma Concentration',col=rainbow(3))
+
+#cor(plasma[, c("logBETAPLASMA", "RETPLASMA", "logRETDIET","logBETADIET","CholestrolCaloryProportion","logALCOHOL","FiberCaloryProportion","percentCaloriesFat","logQUETELET","AGE")])
+
+
+```
+
