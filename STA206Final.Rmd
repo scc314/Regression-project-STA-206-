@@ -9,6 +9,7 @@ output: html_document
 Load dataset, convert categorical variables to factors and plot histograms and piecharts.
 
 ```{r}
+setwd('C:/Users/maxca/Desktop/206 Project')
 plasma = read.table("Plasma.txt",header=TRUE)
 
 sapply(plasma,class)
@@ -183,4 +184,152 @@ xlab='Smoking Status',ylab='Retinol Plasma Concentration',col=rainbow(3))
 
 
 ```
+REGRESSION FOR PLASMA BETA-CAROTENE
+First, we need to create a subset of the plasma dataset, removing variables we've transformed, retplasma, as well as the sex variable, as only women remain in the dataset. Then, we will set up our stepwise regression by creating a null model (logBETAPLASMA regressed onto 1) and our full model (logBETAPLASMA regressed onto all remaining variables.)
+```{r}
+betaplasma<- subset(plasma, select = -c(FAT, FIBER, CHOLESTEROL, BETAPLASMA, RETDIET, QUETELET, BETADIET, ALCOHOL,RETPLASMA, SEX ))
+betaplasma<-betaplasma[betaplasma$logBETAPLASMA > 0,]
+nullbpmodel<- lm(logBETAPLASMA ~1, data=betaplasma)
+fullbpmodel<-lm(logBETAPLASMA ~., data = betaplasma)
+```
+
+Now, we run our stepwise regression, going in both directions from both the null and full model.
+```{r}
+stepbeta<-step(fullbpmodel, direction = 'both')
+stepbetaforward<-step(nullbpmodel, scope = logBETAPLASMA~AGE + SMOKSTAT + VITUSE +CALORIES + logRETDIET + logQUETELET + logBETADIET + logALCOHOL +CaloriesFat + CholesterolCal +FiberCalories, direction = 'both')
+
+```
+As we can see from above, our stepwise procedures have both arrived at the same model. We obtain the model's summary statistics.
+```{r}
+summary(stepbeta)
+```
+From the above model, we can see we cannot reject the possibility age and alcohol consumption are statistically insignificant at the 95% confidence level. Therefore, we will remove them from our final model.
+```{r}
+finalbetaplasmamodel<-lm(betaplasma$logBETAPLASMA ~ SMOKSTAT + VITUSE + logQUETELET + logBETADIET + FiberCalories, data = betaplasma)
+
+summary(finalbetaplasmamodel)
+```
+QQ-Plot and Fitted Values Plot for finalbetaplasma model
+```{r}
+par(mfrow= c(2,2))
+plot(finalbetaplasmamodel)
+```
+RETINOL PLASMA MODEL
+
+Since this model will focus on Retinol Plasma levels as the response variable, we are trimming the inital dataset in terms of variable scope. The variables to be removed include: the categorical variable 'Sex' since there is only one factor level remaining now that we have removed the males, the original versions of the transformed variables (Retdiet, Quetelet, Betadiet, Fat, Fiber, Cholesterol, Alcohol), and lastly the alternate response variable to be examined in our other model (Betaplasma, logBetaplasma.) We then use the trimmed data set to fit an initial first-order regression model.
+
+```{r}
+ret_plasma_reduced <- subset(plasma, select = -c(SEX, BETAPLASMA, logBETAPLASMA, RETDIET, QUETELET, BETADIET, FAT, FIBER, CHOLESTEROL, ALCOHOL))
+initial_fit <- lm(formula = RETPLASMA ~ ., data = ret_plasma_reduced)
+```
+```{r}
+summary(initial_fit)
+anova(initial_fit)
+```
+Looking at these results from the initial model, we can see that the summary table indicates that the coefficients for the age and CaloriesFat variables are both significantly different from 0 albeit at varying alpha levels (~0 and 0.05, respectively.) Additionally, note the adjusted R-squared of 0.04412 which appears quite low at first glance. 
+Switching gears to the ANOVA table for the initial model, it shows age as a variable that significantly improves the model as well a CaloriesFat which also improves the model albeit much less significantly.
+
+```{r}
+plot(initial_fit, which=1)
+plot(initial_fit, which=2)
+```
+Next, we examine the fitted values vs. residuals plot as well as the QQ plot. The points on the fitted vs. residuals plot are generally randomly scattered with no real discernible pattern indicating linearity of the model and somewhat constant variance. There are 3 outliers that show up in the QQ plot, giving it a sharp upward curve/heavy tail on the upper right end. They are all well above the main cluster however they are pretty evenly spread across the range of fitted values.
+
+-Do something about it? (Transform Y, remove outliers from dataset?)
+
+```{r}
+ret_plasma_reduced[order(ret_plasma_reduced$RETPLASMA, decreasing = TRUE),]
+```
+
+Next we will run forward stepwise regression, backward stepwise forward selection and backwards elimination based on AIC and compare the final models.
+
+```{r}
+base_mod <- lm(RETPLASMA ~ 1, data = ret_plasma_reduced)
+full_mod <- initial_fit
+library(MASS)
+
+# forward selection (AIC)
+stepAIC(base_mod, scope = list(upper = full_mod, lower = ~1), direction = "forward",
+    k = 2, trace = FALSE)
+
+# backward elimination based on AIC
+stepAIC(full_mod, scope = list(upper = full_mod, lower = ~1), direction = "backward",
+    k = 2, trace = FALSE)
+
+# forward stepwise based on AIC
+stepAIC(base_mod, scope = list(upper = full_mod, lower = ~1), direction = "both",
+    k = 2, trace = FALSE)
+
+# backward stepwise based on AIC
+stepAIC(full_mod, scope = list(upper = full_mod, lower = ~1), direction = "both",
+    k = 2, trace = FALSE)
+```
+
+```{r}
+# forward selection based on BIC: set option 'k=log(n)'
+stepAIC(base_mod, scope = list(upper = full_mod, lower = ~1), direction = "forward",
+    k = log(n), trace = FALSE)
+
+# backward elimination based on BIC
+stepAIC(full_mod, scope = list(upper = full_mod, lower = ~1), direction = "backward",
+    k = log(n), trace = FALSE)
+
+# forward stepwise based on BIC
+stepAIC(base_mod, scope = list(upper = full_mod, lower = ~1), direction = "both",
+    k = log(n), trace = FALSE)
+
+# backward stepwise based on BIC
+stepAIC(full_mod, scope = list(upper = full_mod, lower = ~1), direction = "both",
+    k = log(n), trace = FALSE)
+```
+
+Based on AIC, the 4 main stepwise/selection variations all arrive at the same model that includes the predictor variables age, CaloriesFat, and FiberCalories whereas the stepwise variations using BIC as the criteria end up on a model that only contains age.
+
+```{r}
+AIC_stepwise_regression_model = lm(formula = RETPLASMA ~ AGE + CaloriesFat + FiberCalories, data = ret_plasma_reduced)
+summary(AIC_stepwise_regression_model)
+anova(AIC_stepwise_regression_model)
+```
+Comparing this output with that from the initial model, the summary table shows similar results but the p-value for the CaloriesFat variable is much lower (almost crossing into the threshold for alpha = 0.01 level significance.) Also noteworth is that the R-squared adjusted is actually marginally higher than that of the initial model even though the model includes way less variables, further validating the model selection process. The ANOVA table for the stepwise model also has a higher significance level for the CaloriesFat variable.
+
+
+```{r}
+AIC(AIC_stepwise_regression_model)
+```
+```{r}
+ret_residuals <- AIC_stepwise_regression_model$residuals
+plot(AIC_stepwise_regression_model, which=4)
+plot(AIC_stepwise_regression_model, which=5)
+```
+
+```{r}
+which(rownames(ret_plasma_reduced) == "122")
+which(rownames(ret_plasma_reduced) == "290")
+which(rownames(ret_plasma_reduced) == "293")
+ret_plasma_reduced[92,]
+ret_plasma_reduced[249,]
+ret_plasma_reduced[252,]
+```
+
+```{r}
+fit.122 <- lm(AIC_stepwise_regression_model, data = ret_plasma_reduced, subset = setdiff(rownames(ret_plasma_reduced), "122"))  ##exclude case 122
+print('Regression coefficients for full final model (row 1) and model excluding case 122 (row 2)')
+rbind(AIC_stepwise_regression_model$coefficients, fit.122$coefficients)  ##compare fitted regression coefficients
+```
+```{r}
+fit.290 <- lm(AIC_stepwise_regression_model, data= ret_plasma_reduced, subset = setdiff(rownames(ret_plasma_reduced), "290"))  ##exclude case 290
+print('Regression coefficients for full final model (row 1) and model excluding case 290 (row 2)')
+rbind(AIC_stepwise_regression_model$coefficients, fit.290$coefficients)  ##compare fitted regression coefficients
+```
+```{r}
+fit.293 <- lm(AIC_stepwise_regression_model, data = ret_plasma_reduced, subset = setdiff(rownames(ret_plasma_reduced), "293"))  ##exclude case 290
+print('Regression coefficients for full final model (row 1) and model excluding case 293 (row 2)')
+rbind(AIC_stepwise_regression_model$coefficients, fit.293$coefficients)  ##compare fitted regression coefficients
+```
+```{r}
+summary(fit.122)
+anova(fit.122)
+```
+
+
 
